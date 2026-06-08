@@ -67,31 +67,4 @@ Opções: comprimento 12, maiúsculas, minúsculas, números, símbolos.
 Senha gerada: aB3#kL9$mQ2@
 Força: FORTE
 Salvando para "GitHub" → OK.
-🤝 Contribuição
-Contribuições são bem‑vindas! Siga os passos:
 
-Faça um fork do projeto.
-
-Crie uma branch para sua feature (git checkout -b feature/nova-feature).
-
-Commit suas alterações (git commit -m 'Adiciona nova feature').
-
-Push para a branch (git push origin feature/nova-feature).
-
-Abra um Pull Request.
-
-text
-
-### Como usar este README
-
-1. Copie todo o conteúdo acima.
-2. Crie um arquivo chamado `README.md` na mesma pasta do `passgen.py`.
-3. Cole o conteúdo.
-4. (Opcional) Substitua a URL do placeholder da imagem por um screenshot real do seu programa após executá-lo.
-5. Substitua as informações de contato e o nome de usuário do GitHub.
-6. Faça o commit e push:
-
-```bash
-git add README.md
-git commit -m "Adiciona README completo"
-git push
