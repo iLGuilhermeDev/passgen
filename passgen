@@ -1,0 +1,266 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+PassGen - Gerador de Senhas Seguro
+Versão 1.0 com interface gráfica (Tkinter)
+Funcionalidades: geração personalizada, avaliação de força, salvamento em Base64.
+"""
+
+import tkinter as tk
+from tkinter import ttk, messagebox
+import random
+import string
+import base64
+import os
+from datetime import datetime
+
+ARQUIVO_SENHAS = "senhas.dat"  # arquivo onde as senhas serão salvas (codificadas em base64)
+
+# ==================== FUNÇÕES DE NEGÓCIO ====================
+
+def gerar_senha(comprimento, usar_maiusculas, usar_minusculas, usar_numeros, usar_simbolos):
+    """Gera uma senha aleatória baseada nos critérios fornecidos."""
+    caracteres = ""
+    if usar_maiusculas:
+        caracteres += string.ascii_uppercase
+    if usar_minusculas:
+        caracteres += string.ascii_lowercase
+    if usar_numeros:
+        caracteres += string.digits
+    if usar_simbolos:
+        caracteres += string.punctuation
+
+    if not caracteres:
+        raise ValueError("Pelo menos um tipo de caractere deve ser selecionado!")
+
+    # Garante que a senha contenha pelo menos um de cada tipo selecionado
+    senha = []
+    if usar_maiusculas:
+        senha.append(random.choice(string.ascii_uppercase))
+    if usar_minusculas:
+        senha.append(random.choice(string.ascii_lowercase))
+    if usar_numeros:
+        senha.append(random.choice(string.digits))
+    if usar_simbolos:
+        senha.append(random.choice(string.punctuation))
+
+    # Completa o restante do comprimento com caracteres aleatórios
+    for _ in range(comprimento - len(senha)):
+        senha.append(random.choice(caracteres))
+
+    # Embaralha para evitar que os caracteres obrigatórios fiquem sempre no início
+    random.shuffle(senha)
+    return ''.join(senha)
+
+def avaliar_forca(senha):
+    """Retorna a força da senha (Fraca, Média, Forte) baseada em comprimento e variedade."""
+    comprimento = len(senha)
+    tipos_usados = 0
+    if any(c in string.ascii_uppercase for c in senha):
+        tipos_usados += 1
+    if any(c in string.ascii_lowercase for c in senha):
+        tipos_usados += 1
+    if any(c in string.digits for c in senha):
+        tipos_usados += 1
+    if any(c in string.punctuation for c in senha):
+        tipos_usados += 1
+
+    pontuacao = 0
+    if comprimento >= 12:
+        pontuacao += 2
+    elif comprimento >= 8:
+        pontuacao += 1
+
+    if tipos_usados >= 3:
+        pontuacao += 2
+    elif tipos_usados == 2:
+        pontuacao += 1
+
+    if pontuacao >= 4:
+        return "FORTE"
+    elif pontuacao >= 2:
+        return "MÉDIA"
+    else:
+        return "FRACA"
+
+def salvar_senha(nome_servico, senha):
+    """Salva uma senha criptografada (Base64 simples) no arquivo."""
+    linha = f"{nome_servico}|{senha}|{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    linha_codificada = base64.b64encode(linha.encode()).decode()
+    with open(ARQUIVO_SENHAS, "a", encoding="utf-8") as f:
+        f.write(linha_codificada + "\n")
+
+def carregar_senhas():
+    """Retorna lista de tuplas (servico, senha, data) a partir do arquivo."""
+    if not os.path.exists(ARQUIVO_SENHAS):
+        return []
+    senhas = []
+    with open(ARQUIVO_SENHAS, "r", encoding="utf-8") as f:
+        for linha_cod in f:
+            linha_cod = linha_cod.strip()
+            if not linha_cod:
+                continue
+            try:
+                linha = base64.b64decode(linha_cod).decode()
+                partes = linha.split("|")
+                if len(partes) == 3:
+                    senhas.append((partes[0], partes[1], partes[2]))
+            except:
+                continue
+    return senhas
+
+# ==================== INTERFACE GRÁFICA ====================
+
+class PassGenApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("PassGen - Gerador de Senhas Seguro")
+        self.root.geometry("700x620")
+        self.root.resizable(True, True)
+
+        # Variáveis de controle
+        self.comprimento = tk.IntVar(value=12)
+        self.usar_maiusculas = tk.BooleanVar(value=True)
+        self.usar_minusculas = tk.BooleanVar(value=True)
+        self.usar_numeros = tk.BooleanVar(value=True)
+        self.usar_simbolos = tk.BooleanVar(value=True)
+
+        self.criar_widgets()
+        self.atualizar_lista_senhas()
+        self.ultima_senha = ""
+
+    def criar_widgets(self):
+        # Notebook (abas)
+        notebook = ttk.Notebook(self.root)
+        notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # Aba 1: Gerar senha
+        frame_gerar = ttk.Frame(notebook)
+        notebook.add(frame_gerar, text="Gerar Senha")
+
+        # Aba 2: Senhas salvas
+        frame_salvas = ttk.Frame(notebook)
+        notebook.add(frame_salvas, text="Senhas Salvas")
+
+        # ---------- Aba Gerar ----------
+        # Frame de opções
+        opts_frame = ttk.LabelFrame(frame_gerar, text="Opções da Senha", padding=10)
+        opts_frame.pack(fill=tk.X, padx=10, pady=10)
+
+        # Comprimento
+        ttk.Label(opts_frame, text="Comprimento:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        comp_spin = ttk.Spinbox(opts_frame, from_=4, to=50, textvariable=self.comprimento, width=10)
+        comp_spin.grid(row=0, column=1, sticky=tk.W, padx=5, pady=5)
+
+        # Checkboxes
+        ttk.Checkbutton(opts_frame, text="Letras maiúsculas (A-Z)", variable=self.usar_maiusculas).grid(row=1, column=0, columnspan=2, sticky=tk.W, padx=5, pady=2)
+        ttk.Checkbutton(opts_frame, text="Letras minúsculas (a-z)", variable=self.usar_minusculas).grid(row=2, column=0, columnspan=2, sticky=tk.W, padx=5, pady=2)
+        ttk.Checkbutton(opts_frame, text="Números (0-9)", variable=self.usar_numeros).grid(row=3, column=0, columnspan=2, sticky=tk.W, padx=5, pady=2)
+        ttk.Checkbutton(opts_frame, text="Símbolos (!@#$...)", variable=self.usar_simbolos).grid(row=4, column=0, columnspan=2, sticky=tk.W, padx=5, pady=2)
+
+        # Botão gerar
+        btn_gerar = ttk.Button(opts_frame, text="Gerar Senha", command=self.gerar_senha_gui)
+        btn_gerar.grid(row=5, column=0, columnspan=2, pady=10)
+
+        # Resultado
+        result_frame = ttk.LabelFrame(frame_gerar, text="Senha Gerada", padding=10)
+        result_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        self.txt_senha = tk.Entry(result_frame, font=("Consolas", 12), state='readonly')
+        self.txt_senha.pack(fill=tk.X, padx=5, pady=5)
+
+        self.lbl_forca = ttk.Label(result_frame, text="Força: --")
+        self.lbl_forca.pack(anchor=tk.W, padx=5, pady=5)
+
+        # Frame para salvar
+        save_frame = ttk.LabelFrame(frame_gerar, text="Salvar esta senha", padding=10)
+        save_frame.pack(fill=tk.X, padx=10, pady=10)
+
+        ttk.Label(save_frame, text="Serviço/Site:").grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
+        self.entry_servico = ttk.Entry(save_frame, width=30)
+        self.entry_servico.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
+
+        btn_salvar = ttk.Button(save_frame, text="Salvar Senha", command=self.salvar_senha_atual)
+        btn_salvar.grid(row=1, column=0, columnspan=2, pady=10)
+
+        # ---------- Aba Senhas Salvas ----------
+        btn_atualizar = ttk.Button(frame_salvas, text="Atualizar Lista", command=self.atualizar_lista_senhas)
+        btn_atualizar.pack(anchor=tk.W, padx=10, pady=5)
+
+        # Área de listagem (Treeview)
+        colunas = ("Serviço", "Senha", "Data/Hora")
+        self.tree_senhas = ttk.Treeview(frame_salvas, columns=colunas, show="headings")
+        for col in colunas:
+            self.tree_senhas.heading(col, text=col)
+            self.tree_senhas.column(col, width=200)
+        self.tree_senhas.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        scroll = ttk.Scrollbar(frame_salvas, orient=tk.VERTICAL, command=self.tree_senhas.yview)
+        scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self.tree_senhas.configure(yscrollcommand=scroll.set)
+
+    # ========== Métodos da interface ==========
+    def gerar_senha_gui(self):
+        comp = self.comprimento.get()
+        if comp < 4:
+            messagebox.showwarning("Aviso", "Comprimento mínimo é 4. Ajustando para 4.")
+            self.comprimento.set(4)
+            comp = 4
+
+        maius = self.usar_maiusculas.get()
+        minus = self.usar_minusculas.get()
+        nums = self.usar_numeros.get()
+        simbolos = self.usar_simbolos.get()
+
+        if not (maius or minus or nums or simbolos):
+            messagebox.showerror("Erro", "Selecione pelo menos um tipo de caractere.")
+            return
+
+        try:
+            senha = gerar_senha(comp, maius, minus, nums, simbolos)
+            forca = avaliar_forca(senha)
+
+            self.txt_senha.config(state='normal')
+            self.txt_senha.delete(0, tk.END)
+            self.txt_senha.insert(0, senha)
+            self.txt_senha.config(state='readonly')
+
+            self.lbl_forca.config(text=f"Força: {forca}")
+            self.ultima_senha = senha
+        except Exception as e:
+            messagebox.showerror("Erro", str(e))
+
+    def salvar_senha_atual(self):
+        senha = self.txt_senha.get()
+        if not senha:
+            messagebox.showwarning("Aviso", "Nenhuma senha foi gerada ainda.")
+            return
+
+        servico = self.entry_servico.get().strip()
+        if not servico:
+            messagebox.showwarning("Aviso", "Digite o nome do serviço/site.")
+            return
+
+        try:
+            salvar_senha(servico, senha)
+            messagebox.showinfo("Sucesso", f"Senha para '{servico}' salva com sucesso!")
+            self.entry_servico.delete(0, tk.END)
+            self.atualizar_lista_senhas()
+        except Exception as e:
+            messagebox.showerror("Erro", f"Não foi possível salvar: {e}")
+
+    def atualizar_lista_senhas(self):
+        for item in self.tree_senhas.get_children():
+            self.tree_senhas.delete(item)
+
+        senhas = carregar_senhas()
+        for servico, senha, data in senhas:
+            self.tree_senhas.insert("", tk.END, values=(servico, senha, data))
+
+def main():
+    root = tk.Tk()
+    app = PassGenApp(root)
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()
